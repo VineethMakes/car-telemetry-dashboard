@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Car Telemetry Dashboard by Vineeth Velmurugan and Vineeth Makes: a Rust-powered vehicle telemetry dashboard with diagnostics and 3D route visualization."
+    />
+    <title>Car Telemetry Dashboard | Vineeth Makes</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar" aria-label="Vehicle status">
+        <div>
+          <p class="eyebrow">Vineeth Makes</p>
+          <h1>Car Telemetry Dashboard</h1>
+        </div>
+        <div class="status-pill" id="connection">Live WASM feed</div>
+      </section>
+
+      <section class="dashboard">
+        <div class="gauge-panel">
+          <canvas id="scene" aria-label="3D telemetry route"></canvas>
+          <div class="gauge-strip">
+            <article>
+              <span>Speed</span>
+              <strong id="speed">--</strong>
+            </article>
+            <article>
+              <span>RPM</span>
+              <strong id="rpm">--</strong>
+            </article>
+            <article>
+              <span>Fuel</span>
+              <strong id="fuel">--</strong>
+            </article>
+            <article>
+              <span>Score</span>
+              <strong id="score">--</strong>
+            </article>
+          </div>
+        </div>
+
+        <aside class="inspector" aria-label="Telemetry details">
+          <div class="metric-grid">
+            <article>
+              <span>Distance</span>
+              <strong id="distance">--</strong>
+            </article>
+            <article>
+              <span>Avg Speed</span>
+              <strong id="average-speed">--</strong>
+            </article>
+            <article>
+              <span>Coolant</span>
+              <strong id="coolant">--</strong>
+            </article>
+            <article>
+              <span>Battery</span>
+              <strong id="battery">--</strong>
+            </article>
+          </div>
+          <div>
+            <h2>Diagnostics</h2>
+            <ul class="diagnostics" id="diagnostics"></ul>
+          </div>
+          <div>
+            <h2>Trip Trace</h2>
+            <ol class="timeline" id="timeline"></ol>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
