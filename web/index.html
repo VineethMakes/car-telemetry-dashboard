@@ -1,79 +1,66 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta
-      name="description"
-      content="Car Telemetry Dashboard by Vineeth Velmurugan and Vineeth Makes: a Rust-powered vehicle telemetry dashboard with diagnostics and 3D route visualization."
-    />
-    <title>Car Telemetry Dashboard | Vineeth Makes</title>
-    <link rel="stylesheet" href="./src/styles.css" />
-  </head>
-  <body>
-    <main class="shell">
-      <section class="topbar" aria-label="Vehicle status">
-        <div>
-          <p class="eyebrow">Vineeth Makes</p>
-          <h1>Car Telemetry Dashboard</h1>
-        </div>
-        <div class="status-pill" id="connection">Live WASM feed</div>
-      </section>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Telemetry Dashboard</title>
+    <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Car Telemetry Dashboard</h1>
+            <p>Rust-powered digital twin simulation</p>
+        </header>
 
-      <section class="dashboard">
-        <div class="gauge-panel">
-          <canvas id="scene" aria-label="3D telemetry route"></canvas>
-          <div class="gauge-strip">
-            <article>
-              <span>Speed</span>
-              <strong id="speed">--</strong>
-            </article>
-            <article>
-              <span>RPM</span>
-              <strong id="rpm">--</strong>
-            </article>
-            <article>
-              <span>Fuel</span>
-              <strong id="fuel">--</strong>
-            </article>
-            <article>
-              <span>Score</span>
-              <strong id="score">--</strong>
-            </article>
-          </div>
-        </div>
+        <main>
+            <div class="dashboard-grid">
+                <div class="card metrics-card">
+                    <h2>Live Metrics</h2>
+                    <div class="metric-row">
+                        <span class="label">Speed:</span>
+                        <span class="value" id="val-speed">-- km/h</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="label">RPM:</span>
+                        <span class="value" id="val-rpm">--</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="label">Gear:</span>
+                        <span class="value" id="val-gear">--</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="label">Engine Temp:</span>
+                        <span class="value" id="val-temp">-- °C</span>
+                    </div>
+                </div>
 
-        <aside class="inspector" aria-label="Telemetry details">
-          <div class="metric-grid">
-            <article>
-              <span>Distance</span>
-              <strong id="distance">--</strong>
-            </article>
-            <article>
-              <span>Avg Speed</span>
-              <strong id="average-speed">--</strong>
-            </article>
-            <article>
-              <span>Coolant</span>
-              <strong id="coolant">--</strong>
-            </article>
-            <article>
-              <span>Battery</span>
-              <strong id="battery">--</strong>
-            </article>
-          </div>
-          <div>
-            <h2>Diagnostics</h2>
-            <ul class="diagnostics" id="diagnostics"></ul>
-          </div>
-          <div>
-            <h2>Trip Trace</h2>
-            <ol class="timeline" id="timeline"></ol>
-          </div>
-        </aside>
-      </section>
-    </main>
+                <div class="card tires-card">
+                    <h2>Tire Pressure</h2>
+                    <div class="tires-grid">
+                        <div class="tire" id="tire-fl">FL: -- PSI</div>
+                        <div class="tire" id="tire-fr">FR: -- PSI</div>
+                        <div class="tire" id="tire-rl">RL: -- PSI</div>
+                        <div class="tire" id="tire-rr">RR: -- PSI</div>
+                    </div>
+                </div>
 
-    <script type="module" src="./src/app.js"></script>
-  </body>
+                <div class="card alerts-card">
+                    <h2>Diagnostics</h2>
+                    <ul id="alerts-list">
+                        <li class="no-alerts">System Normal</li>
+                    </ul>
+                </div>
+                
+                <div class="card 3d-card" style="grid-column: 1 / -1; height: 300px; display: flex; align-items: center; justify-content: center; background: #1a1a1a;">
+                    <div id="scene-container" style="width: 100%; height: 100%;"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Include Three.js for a basic 3D car placeholder -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script type="module" src="src/app.js"></script>
+</body>
 </html>

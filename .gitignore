@@ -1,4 +1,4 @@
-/target
-/web/pkg
-/screenshots
+target/
+web/pkg/
+node_modules/
 .DS_Store

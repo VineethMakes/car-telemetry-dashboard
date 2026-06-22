@@ -1,223 +1,136 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TelemetrySample {
-    pub second: u32,
-    pub speed_mph: f32,
-    pub rpm: u16,
-    pub throttle_pct: f32,
-    pub coolant_f: f32,
-    pub oil_temp_f: f32,
-    pub fuel_pct: f32,
-    pub battery_v: f32,
-    pub latitude: f64,
-    pub longitude: f64,
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TelemetryData {
+    pub speed: f32, // km/h
+    pub rpm: u32,
+    pub engine_temp: f32, // Celsius
+    pub fuel_level: f32, // Percentage
+    pub battery_voltage: f32, // Volts
+    pub gear: i8, // -1 is Reverse, 0 is Neutral, 1-6 are forward gears
+    pub tire_pressure: [f32; 4], // FL, FR, RL, RR in PSI
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct DiagnosticCode {
-    pub code: String,
-    pub label: String,
-    pub severity: Severity,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DiagnosticAlert {
+    pub severity: String,
+    pub message: String,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub enum Severity {
-    Info,
-    Warning,
-    Critical,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VehicleState {
+    pub telemetry: TelemetryData,
+    pub alerts: Vec<DiagnosticAlert>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TripSummary {
-    pub duration_seconds: u32,
-    pub distance_miles: f32,
-    pub average_speed_mph: f32,
-    pub max_speed_mph: f32,
-    pub max_rpm: u16,
-    pub fuel_used_pct: f32,
-    pub efficiency_score: u8,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct VehicleSnapshot {
-    pub vehicle_name: String,
-    pub odometer_miles: u32,
-    pub samples: Vec<TelemetrySample>,
-    pub current: TelemetrySample,
-    pub summary: TripSummary,
-    pub diagnostics: Vec<DiagnosticCode>,
-}
-
-pub fn demo_snapshot() -> VehicleSnapshot {
-    let samples = demo_samples();
-    let current = samples.last().expect("demo trip contains samples").clone();
-    let summary = summarize_trip(&samples);
-    let diagnostics = evaluate_diagnostics(
-        &current,
-        &[DiagnosticCode {
-            code: "P0456".to_owned(),
-            label: "Small evaporative emissions leak".to_owned(),
-            severity: Severity::Info,
-        }],
-    );
-
-    VehicleSnapshot {
-        vehicle_name: "Daily Driver".to_owned(),
-        odometer_miles: 42_618,
-        samples,
-        current,
-        summary,
-        diagnostics,
+impl Default for TelemetryData {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
-pub fn summarize_trip(samples: &[TelemetrySample]) -> TripSummary {
-    if samples.is_empty() {
-        return TripSummary {
-            duration_seconds: 0,
-            distance_miles: 0.0,
-            average_speed_mph: 0.0,
-            max_speed_mph: 0.0,
-            max_rpm: 0,
-            fuel_used_pct: 0.0,
-            efficiency_score: 0,
-        };
+impl TelemetryData {
+    pub fn new() -> Self {
+        Self {
+            speed: 0.0,
+            rpm: 800,
+            engine_temp: 90.0,
+            fuel_level: 100.0,
+            battery_voltage: 12.6,
+            gear: 0,
+            tire_pressure: [32.0, 32.0, 32.0, 32.0],
+        }
     }
 
-    let duration_seconds = samples
-        .last()
-        .map(|sample| sample.second.saturating_sub(samples[0].second))
-        .unwrap_or_default();
-    let distance_miles = integrate_distance(samples);
-    let average_speed_mph = if duration_seconds == 0 {
-        0.0
-    } else {
-        distance_miles / (duration_seconds as f32 / 3600.0)
-    };
-    let max_speed_mph = samples
-        .iter()
-        .map(|sample| sample.speed_mph)
-        .fold(0.0, f32::max);
-    let max_rpm = samples
-        .iter()
-        .map(|sample| sample.rpm)
-        .max()
-        .unwrap_or_default();
-    let fuel_used_pct = (samples[0].fuel_pct - samples.last().unwrap().fuel_pct).max(0.0);
-    let aggressive_load = samples
-        .iter()
-        .filter(|sample| sample.rpm > 4_200 || sample.throttle_pct > 72.0)
-        .count() as f32
-        / samples.len() as f32;
-    let fuel_penalty = (fuel_used_pct * 5.0).min(35.0);
-    let load_penalty = aggressive_load * 40.0;
-    let efficiency_score = (100.0 - fuel_penalty - load_penalty)
-        .clamp(0.0, 100.0)
-        .round() as u8;
+    pub fn evaluate_diagnostics(&self) -> Vec<DiagnosticAlert> {
+        let mut alerts = Vec::new();
 
-    TripSummary {
-        duration_seconds,
-        distance_miles: round2(distance_miles),
-        average_speed_mph: round1(average_speed_mph),
-        max_speed_mph: round1(max_speed_mph),
-        max_rpm,
-        fuel_used_pct: round1(fuel_used_pct),
-        efficiency_score,
-    }
-}
+        if self.engine_temp > 110.0 {
+            alerts.push(DiagnosticAlert {
+                severity: "High".to_string(),
+                message: "Engine Temperature Critical".to_string(),
+            });
+        }
 
-pub fn evaluate_diagnostics(
-    current: &TelemetrySample,
-    stored_codes: &[DiagnosticCode],
-) -> Vec<DiagnosticCode> {
-    let mut diagnostics = Vec::from(stored_codes);
+        if self.battery_voltage < 11.5 {
+            alerts.push(DiagnosticAlert {
+                severity: "Medium".to_string(),
+                message: "Battery Voltage Low".to_string(),
+            });
+        }
 
-    if current.coolant_f >= 230.0 || current.oil_temp_f >= 255.0 {
-        diagnostics.push(DiagnosticCode {
-            code: "TEMP".to_owned(),
-            label: "Powertrain temperature is above the comfort range".to_owned(),
-            severity: Severity::Critical,
-        });
-    }
-
-    if current.battery_v < 12.1 {
-        diagnostics.push(DiagnosticCode {
-            code: "BATT".to_owned(),
-            label: "Battery voltage is low".to_owned(),
-            severity: Severity::Warning,
-        });
-    }
-
-    if current.fuel_pct < 15.0 {
-        diagnostics.push(DiagnosticCode {
-            code: "FUEL".to_owned(),
-            label: "Fuel level is low".to_owned(),
-            severity: Severity::Warning,
-        });
-    }
-
-    diagnostics
-}
-
-fn integrate_distance(samples: &[TelemetrySample]) -> f32 {
-    samples
-        .windows(2)
-        .map(|pair| {
-            let seconds = pair[1].second.saturating_sub(pair[0].second) as f32;
-            let average_speed = (pair[0].speed_mph + pair[1].speed_mph) / 2.0;
-            average_speed * (seconds / 3600.0)
-        })
-        .sum()
-}
-
-fn demo_samples() -> Vec<TelemetrySample> {
-    let path = [
-        (37.3317, -122.0301),
-        (37.3328, -122.0290),
-        (37.3342, -122.0277),
-        (37.3359, -122.0259),
-        (37.3371, -122.0238),
-        (37.3384, -122.0217),
-        (37.3395, -122.0195),
-        (37.3402, -122.0178),
-    ];
-
-    path.iter()
-        .enumerate()
-        .map(|(index, (latitude, longitude))| {
-            let second = (index as u32) * 45;
-            let speed = [0.0, 22.0, 38.0, 51.0, 48.0, 35.0, 24.0, 18.0][index];
-            TelemetrySample {
-                second,
-                speed_mph: speed,
-                rpm: [850, 1_900, 2_650, 3_250, 2_900, 2_250, 1_800, 1_550][index],
-                throttle_pct: [8.0, 32.0, 46.0, 61.0, 42.0, 29.0, 21.0, 16.0][index],
-                coolant_f: 182.0 + index as f32 * 2.3,
-                oil_temp_f: 188.0 + index as f32 * 2.7,
-                fuel_pct: 64.0 - index as f32 * 0.45,
-                battery_v: 13.8 - index as f32 * 0.02,
-                latitude: *latitude,
-                longitude: *longitude,
+        for (i, pressure) in self.tire_pressure.iter().enumerate() {
+            if *pressure < 28.0 {
+                let pos = match i {
+                    0 => "Front Left",
+                    1 => "Front Right",
+                    2 => "Rear Left",
+                    3 => "Rear Right",
+                    _ => "Unknown",
+                };
+                alerts.push(DiagnosticAlert {
+                    severity: "Low".to_string(),
+                    message: format!("Low Tire Pressure: {}", pos),
+                });
             }
-        })
-        .collect()
+        }
+
+        alerts
+    }
 }
 
-fn round1(value: f32) -> f32 {
-    (value * 10.0).round() / 10.0
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub struct CarSimulation {
+    telemetry: TelemetryData,
+    time: f32,
 }
 
-fn round2(value: f32) -> f32 {
-    (value * 100.0).round() / 100.0
+impl Default for CarSimulation {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
-#[cfg(feature = "wasm")]
-use wasm_bindgen::prelude::wasm_bindgen;
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+impl CarSimulation {
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
+    pub fn new() -> Self {
+        Self {
+            telemetry: TelemetryData::new(),
+            time: 0.0,
+        }
+    }
 
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn demo_snapshot_json() -> String {
-    serde_json::to_string(&demo_snapshot()).expect("demo snapshot is serializable")
+    pub fn tick(&mut self, dt: f32) {
+        self.time += dt;
+        
+        // Simulate some driving dynamics
+        self.telemetry.speed = 60.0 + (self.time * 0.5).sin() * 20.0;
+        self.telemetry.rpm = 2000 + (self.telemetry.speed as u32 * 30);
+        
+        if self.telemetry.speed > 5.0 {
+            self.telemetry.gear = (self.telemetry.speed / 20.0).ceil() as i8;
+            if self.telemetry.gear > 6 {
+                self.telemetry.gear = 6;
+            }
+        } else {
+            self.telemetry.gear = 1;
+        }
+
+        // Simulate a slow leak in the rear left tire over time
+        self.telemetry.tire_pressure[2] = 32.0 - (self.time * 0.05).clamp(0.0, 10.0);
+    }
+
+    pub fn get_state_json(&self) -> String {
+        let state = VehicleState {
+            telemetry: self.telemetry.clone(),
+            alerts: self.telemetry.evaluate_diagnostics(),
+        };
+        serde_json::to_string(&state).unwrap_or_else(|_| "{}".to_string())
+    }
 }
 
 #[cfg(test)]
@@ -225,36 +138,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn summarizes_trip_distance_and_load() {
-        let snapshot = demo_snapshot();
-
-        assert!(snapshot.summary.distance_miles > 2.5);
-        assert!(snapshot.summary.average_speed_mph > 25.0);
-        assert_eq!(snapshot.summary.max_rpm, 3_250);
-        assert!(snapshot.summary.efficiency_score >= 80);
+    fn test_initial_state() {
+        let sim = CarSimulation::new();
+        let alerts = sim.telemetry.evaluate_diagnostics();
+        assert!(alerts.is_empty(), "Should not have alerts on initialization");
     }
 
     #[test]
-    fn adds_critical_temperature_alert() {
-        let hot_sample = TelemetrySample {
-            coolant_f: 235.0,
-            oil_temp_f: 248.0,
-            ..demo_snapshot().current
-        };
-
-        let diagnostics = evaluate_diagnostics(&hot_sample, &[]);
-
-        assert!(diagnostics.iter().any(
-            |diagnostic| diagnostic.code == "TEMP" && diagnostic.severity == Severity::Critical
-        ));
-    }
-
-    #[test]
-    fn empty_trip_has_zero_summary() {
-        let summary = summarize_trip(&[]);
-
-        assert_eq!(summary.duration_seconds, 0);
-        assert_eq!(summary.distance_miles, 0.0);
-        assert_eq!(summary.efficiency_score, 0);
+    fn test_tire_pressure_alert() {
+        let mut sim = CarSimulation::new();
+        sim.telemetry.tire_pressure[0] = 25.0; // Low pressure
+        let alerts = sim.telemetry.evaluate_diagnostics();
+        assert_eq!(alerts.len(), 1);
+        assert_eq!(alerts[0].message, "Low Tire Pressure: Front Left");
     }
 }
